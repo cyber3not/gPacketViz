@@ -11,7 +11,7 @@ It provides structured, human-readable packet output for various protocols, maki
 - Live sniffing on a selected network interface
 - Protocol breakdown: Ethernet, IPv4, IPv6, TCP, UDP
 - Colorized TCP flag display for quick scanning behavior analysis
-- Basic filters via CLI: filter by port and/or IP
+- Flexible filters via CLI: filter by IP, port, MAC address, or custom BPF expression
 
 ## Usage
 
@@ -26,6 +26,5 @@ sudo ./gPacketViz
 ## TODO & Further Ideas
 - [ ] Save captured output to file (e.g. JSON or PCAP)
 - [ ] Detect IPv6 Extension Headers
-- [ ] Add MAC address filtering support
 - [ ] Support additional protocols (e.g., ICMP, DNS, ARP, ICMPv6)
 - [ ] Build a "firewall playground" environment as a companion project to simulate real-world firewall setups and scanning scenarios (e.g. Docker-based testbed with configurable rules and open ports
