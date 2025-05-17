@@ -24,8 +24,12 @@ func main() {
 	//Help & Arguments
 	var ipFilter string
 	var portFilter int
+	var macFilter string
+	var bpf string
 	flag.StringVar(&ipFilter, "ip", "", "Filter by IPv4")
 	flag.IntVar(&portFilter, "port", 0, "Filter by Port")
+	flag.StringVar(&macFilter, "mac", "", "Filter by MAC")
+	flag.StringVar(&bpf, "bpf", "", "Berkley Package Filter")
 
 	flag.Usage = func() {
 		progName := filepath.Base(os.Args[0])
@@ -56,7 +60,7 @@ func main() {
 	// Start packet processing
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
-	// Set filter
+	// Filter Logic
 	var filter string
 
 	if portFilter != 0 {
@@ -70,12 +74,31 @@ func main() {
 		filter += fmt.Sprintf("host %s", ipFilter)
 	}
 
+    if macFilter != "" {
+		if filter != ""{
+			filter += " and "
+		}
+		filter += fmt.Sprintf("ether host %s", macFilter)
+	}
+
+	//BPF Filter
+	if bpf != ""{
+		filter = bpf
+	}
+
+	//Set Filter
 	err = handle.SetBPFFilter(filter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Only capturing ...", ipFilter)
+	if bpf != "" {
+		fmt.Println("Using custom BPF filter:", bpf)
+	} else if filter != "" {
+		fmt.Println("Using generated filter:", filter)
+	} else {
+		fmt.Println("No filter applied – capturing all packets")
+	}
 
 	//
 	for packet := range packetSource.Packets() {
@@ -147,6 +170,6 @@ func main() {
 			fmt.Printf("            ├── Length          : %d\n", udpLayer.Length)
 			fmt.Printf("            └── Checksum        : %X\n", udpLayer.Checksum)
 		}
-		fmt.Println("────────────────────────────────────────────────────────────────────────\n")
+		fmt.Println("────────────────────────────────────────────────────────────────────────")
 	}
 }
