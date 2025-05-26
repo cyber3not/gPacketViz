@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"net"
 	"time"
 	"path/filepath"
 
@@ -19,6 +20,96 @@ func colorFlag(flag bool) string {
 	}
 	return "\033[31mfalse\033[0m"    //red
 }
+
+
+func printARP(arp *layers.ARP) {
+	fmt.Println("    └──────────────────────[ARP]───────────────────────────")
+	fmt.Printf("        ├── Hardware Type     : %v\n", arp.AddrType)
+	fmt.Printf("        ├── Protocol Type     : %v\n", arp.Protocol)
+	fmt.Printf("        ├── HW Addr Length    : %d\n", arp.HwAddressSize)
+	fmt.Printf("        ├── Proto Addr Length : %d\n", arp.ProtAddressSize)
+	fmt.Printf("        ├── Operation         : %d\n", arp.Operation)
+	fmt.Printf("        ├── Sender MAC        : %s\n", net.HardwareAddr(arp.SourceHwAddress))
+	fmt.Printf("        ├── Sender IP         : %s\n", net.IP(arp.SourceProtAddress))
+	fmt.Printf("        ├── Target MAC        : %s\n", net.HardwareAddr(arp.DstHwAddress))
+	fmt.Printf("        └── Target IP         : %s\n", net.IP(arp.DstProtAddress))
+}
+
+func printICMPv4(icmpv4 *layers.ICMPv4) {
+	fmt.Println("        └─────────────────────[ICMPv4]─────────────────────")
+	fmt.Printf("            ├── Type             : %d\n", icmpv4.TypeCode.Type())
+	fmt.Printf("            ├── Code             : %d\n", icmpv4.TypeCode.Code())
+	fmt.Printf("            ├── Checksum         : %d\n", icmpv4.Checksum)
+	fmt.Printf("            └── Payload Length    : %d bytes\n", len(icmpv4.Payload))
+	fmt.Printf("            └── Payload (hex)     : % X\n", icmpv4.Payload)
+}
+
+func printICMPv6(icmpv6 *layers.ICMPv6) {
+	fmt.Println("        └────────────────────[ICMPv6]──────────────────────")
+	fmt.Printf("            ├── Type             : %d\n", icmpv6.TypeCode.Type())
+	fmt.Printf("            ├── Code             : %d\n", icmpv6.TypeCode.Code())
+	fmt.Printf("            ├── Checksum         : %d\n", icmpv6.Checksum)
+	fmt.Printf("            └── Payload Length   : %d bytes\n", len(icmpv6.Payload))
+	fmt.Printf("            └── Payload (hex)    : % X\n", icmpv6.Payload)
+}
+
+func printDNS(dns *layers.DNS){
+	fmt.Println("            └──────────────────────[DNS]───────────────────────")
+	fmt.Printf("                ├── ID                : %d\n", dns.ID)
+	fmt.Printf("                ├── QR (Query/Resp)   : %t\n", dns.QR)
+	fmt.Printf("                ├── OpCode            : %d\n", dns.OpCode)
+	fmt.Printf("                ├── Authoritative     : %t\n", dns.AA)
+	fmt.Printf("                ├── Truncated         : %t\n", dns.TC)
+	fmt.Printf("                ├── Recursion Desired : %t\n", dns.RD)
+	fmt.Printf("                ├── Recursion Avail.  : %t\n", dns.RA)
+	fmt.Printf("                ├── Z (reserved)      : %d\n", dns.Z)
+	fmt.Printf("                ├── Response Code     : %d\n", dns.ResponseCode)
+	fmt.Printf("                ├── Questions         : %d\n", dns.QDCount)
+	fmt.Printf("                ├── Answers           : %d\n", dns.ANCount)
+	fmt.Printf("                ├── Authorities       : %d\n", dns.NSCount)
+	fmt.Printf("                └── Additionals       : %d\n", dns.ARCount)
+
+	// Questions
+	if len(dns.Questions) > 0 {
+		fmt.Println("                    Questions:")
+		for _, q := range dns.Questions {
+			fmt.Printf("                    - %s (%s)\n", string(q.Name), q.Type)
+		}
+	}
+
+	
+	// Answers
+	if len(dns.Answers) > 0 {
+		fmt.Println("                    Answers:")
+		for _, a := range dns.Answers {
+			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
+				string(a.Name), a.Type, a.TTL, a.Data)
+		}
+	}
+
+	// Authorities
+	if len(dns.Authorities) > 0 {
+		fmt.Println("                   Authorities:")
+		for _, a := range dns.Authorities {
+			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
+				string(a.Name), a.Type, a.TTL, a.Data)
+		}
+	}
+
+	// Additionals
+	if len(dns.Additionals) > 0 {
+		fmt.Println("                   Additionals:")
+		for _, a := range dns.Additionals {
+			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
+				string(a.Name), a.Type, a.TTL, a.Data)
+		}
+	}
+}
+
+
+
+
+
 
 func main() {
 	//Help & Arguments
@@ -106,10 +197,21 @@ func main() {
 
 		//Separate Layer
 		eth := packet.Layer(layers.LayerTypeEthernet)
+		  arp := packet.Layer(layers.LayerTypeARP)
+
 		ip4 := packet.Layer(layers.LayerTypeIPv4)
+          icmpv4 := packet.Layer(layers.LayerTypeICMPv4)
+
 		ip6 := packet.Layer(layers.LayerTypeIPv6)
+		  icmpv6 := packet.Layer(layers.LayerTypeICMPv6)
+
 		tcp := packet.Layer(layers.LayerTypeTCP)
 		udp := packet.Layer(layers.LayerTypeUDP)
+
+	    	dns := packet.Layer(layers.LayerTypeDNS)
+		  
+
+		
 
 		//Output
 		fmt.Printf("[%s]Received Package:───────────────────────────────────────────── \n", time.Now().Format("15:04:05"))
@@ -121,6 +223,15 @@ func main() {
 			fmt.Printf("    ├── EtherType    : %s\n", ethernetLayer.EthernetType)
 			fmt.Printf("    └── Length       : %d\n", ethernetLayer.Length)
 		}
+
+		// Unhandled Ethernet payload
+		if arp != nil {
+			printARP(arp.(*layers.ARP))
+		} else if eth != nil && ip4 == nil && ip6 == nil {
+			ethernetLayer := eth.(*layers.Ethernet)
+			fmt.Printf("        └── Next protocol: %s\n", ethernetLayer.EthernetType)
+		}
+
 		if ip4 != nil {
 			ip4Layer := ip4.(*layers.IPv4)
 			fmt.Println("    └─────────────────────[IPv4]──────────────────────────")
@@ -137,6 +248,16 @@ func main() {
 			fmt.Printf("        ├── SrcIP          : %s\n", ip4Layer.SrcIP)
 			fmt.Printf("        └── DstIP          : %s\n", ip4Layer.DstIP)
 		}
+
+		// Unhandled IPv4 payload
+		if icmpv4 != nil {
+			printICMPv4(icmpv4.(*layers.ICMPv4))
+		} else if ip4 != nil && tcp == nil && udp == nil {
+			ip4Layer := ip4.(*layers.IPv4)
+			fmt.Printf("        └── Next protocol %s\n", ip4Layer.Protocol)
+		}
+		
+
 		if ip6 != nil {
 			ip6Layer := ip6.(*layers.IPv6)
 			fmt.Println("    └─────────────────────[IPv6]──────────────────────────")
@@ -149,6 +270,17 @@ func main() {
 			fmt.Printf("        ├── SrcIP          : %s\n", ip6Layer.SrcIP)
 			fmt.Printf("        └── DstIP          : %s\n", ip6Layer.DstIP)
 		}
+
+		// Unhandled IPv6 payload
+		if icmpv6 != nil {
+			printICMPv6(icmpv6.(*layers.ICMPv6))
+		} else if ip6 != nil && tcp == nil && udp == nil {
+			ip6Layer := ip6.(*layers.IPv6)
+			fmt.Printf("        └── Next Header: %s\n", ip6Layer.NextHeader)
+		}
+		
+
+
 		if tcp != nil {	
 			tcpLayer := tcp.(*layers.TCP)
 			fmt.Println("        └──────────────────────[TCP]──────────────────────")
@@ -162,6 +294,7 @@ func main() {
 			fmt.Printf("            ├── Checksum        : %d\n", tcpLayer.Checksum)
 			fmt.Printf("            └── Urgent Pointer  : %d\n", tcpLayer.Urgent)
 		}
+
 		if udp != nil {
 			udpLayer := udp.(*layers.UDP)
 			fmt.Println("        └──────────────────────[UDP]──────────────────────")
@@ -170,6 +303,12 @@ func main() {
 			fmt.Printf("            ├── Length          : %d\n", udpLayer.Length)
 			fmt.Printf("            └── Checksum        : %X\n", udpLayer.Checksum)
 		}
+
+		if dns != nil {
+			printDNS(dns.(*layers.DNS))
+		}
+
+		
 		fmt.Println("────────────────────────────────────────────────────────────────────────")
 	}
 }
