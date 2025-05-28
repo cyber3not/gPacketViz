@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"net"
 	"time"
 	"path/filepath"
-
+	"gPacketViz/printer"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
 )
+
+
 
 func colorFlag(flag bool) string {
 	if flag {
@@ -21,115 +22,6 @@ func colorFlag(flag bool) string {
 	}
 	return "\033[31mfalse\033[0m"    //red
 }
-
-
-func printARP(arp *layers.ARP) {
-	fmt.Println("    └──────────────────────[ARP]───────────────────────────")
-	fmt.Printf("        ├── Hardware Type     : %v\n", arp.AddrType)
-	fmt.Printf("        ├── Protocol Type     : %v\n", arp.Protocol)
-	fmt.Printf("        ├── HW Addr Length    : %d\n", arp.HwAddressSize)
-	fmt.Printf("        ├── Proto Addr Length : %d\n", arp.ProtAddressSize)
-	fmt.Printf("        ├── Operation         : %d\n", arp.Operation)
-	fmt.Printf("        ├── Sender MAC        : %s\n", net.HardwareAddr(arp.SourceHwAddress))
-	fmt.Printf("        ├── Sender IP         : %s\n", net.IP(arp.SourceProtAddress))
-	fmt.Printf("        ├── Target MAC        : %s\n", net.HardwareAddr(arp.DstHwAddress))
-	fmt.Printf("        └── Target IP         : %s\n", net.IP(arp.DstProtAddress))
-}
-
-func printICMPv4(icmpv4 *layers.ICMPv4) {
-	fmt.Println("        └─────────────────────[ICMPv4]─────────────────────")
-	fmt.Printf("            ├── Type             : %d\n", icmpv4.TypeCode.Type())
-	fmt.Printf("            ├── Code             : %d\n", icmpv4.TypeCode.Code())
-	fmt.Printf("            ├── Checksum         : %d\n", icmpv4.Checksum)
-	fmt.Printf("            └── Payload Length    : %d bytes\n", len(icmpv4.Payload))
-	fmt.Printf("            └── Payload (hex)     : % X\n", icmpv4.Payload)
-}
-
-func printICMPv6(icmpv6 *layers.ICMPv6) {
-	fmt.Println("        └────────────────────[ICMPv6]──────────────────────")
-	fmt.Printf("            ├── Type             : %d\n", icmpv6.TypeCode.Type())
-	fmt.Printf("            ├── Code             : %d\n", icmpv6.TypeCode.Code())
-	fmt.Printf("            ├── Checksum         : %d\n", icmpv6.Checksum)
-	fmt.Printf("            └── Payload Length   : %d bytes\n", len(icmpv6.Payload))
-	fmt.Printf("            └── Payload (hex)    : % X\n", icmpv6.Payload)
-}
-
-func printDNS(dns *layers.DNS){
-	fmt.Println("            └──────────────────────[DNS]───────────────────────")
-	fmt.Printf("                ├── ID                : %d\n", dns.ID)
-	fmt.Printf("                ├── QR (Query/Resp)   : %t\n", dns.QR)
-	fmt.Printf("                ├── OpCode            : %d\n", dns.OpCode)
-	fmt.Printf("                ├── Authoritative     : %t\n", dns.AA)
-	fmt.Printf("                ├── Truncated         : %t\n", dns.TC)
-	fmt.Printf("                ├── Recursion Desired : %t\n", dns.RD)
-	fmt.Printf("                ├── Recursion Avail.  : %t\n", dns.RA)
-	fmt.Printf("                ├── Z (reserved)      : %d\n", dns.Z)
-	fmt.Printf("                ├── Response Code     : %d\n", dns.ResponseCode)
-	fmt.Printf("                ├── Questions         : %d\n", dns.QDCount)
-	fmt.Printf("                ├── Answers           : %d\n", dns.ANCount)
-	fmt.Printf("                ├── Authorities       : %d\n", dns.NSCount)
-	fmt.Printf("                └── Additionals       : %d\n", dns.ARCount)
-
-	// Questions
-	if len(dns.Questions) > 0 {
-		fmt.Println("                    Questions:")
-		for _, q := range dns.Questions {
-			fmt.Printf("                    - %s (%s)\n", string(q.Name), q.Type)
-		}
-	}
-
-	
-	// Answers
-	if len(dns.Answers) > 0 {
-		fmt.Println("                    Answers:")
-		for _, a := range dns.Answers {
-			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
-				string(a.Name), a.Type, a.TTL, a.Data)
-		}
-	}
-
-	// Authorities
-	if len(dns.Authorities) > 0 {
-		fmt.Println("                   Authorities:")
-		for _, a := range dns.Authorities {
-			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
-				string(a.Name), a.Type, a.TTL, a.Data)
-		}
-	}
-
-	// Additionals
-	if len(dns.Additionals) > 0 {
-		fmt.Println("                   Additionals:")
-		for _, a := range dns.Additionals {
-			fmt.Printf("                    - %s (%s) TTL=%ds Data=%X\n",
-				string(a.Name), a.Type, a.TTL, a.Data)
-		}
-	}
-}
-
-func printDHCPv4(dhcpv4 *layers.DHCPv4) {
-	fmt.Println("            └────────────────────[DHCPv4]────────────────────")
-	fmt.Printf("                ├── Operation        : %s\n", dhcpv4.Operation)
-	fmt.Printf("                ├── Hardware Type    : %d\n", dhcpv4.HardwareType)
-	fmt.Printf("                ├── Hardware Len     : %d\n", dhcpv4.HardwareLen)
-	fmt.Printf("                ├── Relay Hops       : %d\n")
-	fmt.Printf("                ├── Transaction ID   : 0x%X\n", dhcpv4.Xid)
-	fmt.Printf("                ├── Seconds Elapsed  : %d\n", dhcpv4.Secs)
-	fmt.Printf("                ├── Flags            : 0x%X\n", dhcpv4.Flags)
-	fmt.Printf("                ├── Client IP        : %s\n", dhcpv4.ClientIP)
-	fmt.Printf("                ├── Your Client IP   : %s\n", dhcpv4.YourClientIP)
-	fmt.Printf("                ├── Next Server IP   : %s\n", dhcpv4.NextServerIP)
-	fmt.Printf("                ├── Relay Agent IP   : %s\n", dhcpv4.RelayAgentIP)
-	fmt.Printf("                ├── Client HW Addr   : %s\n", net.HardwareAddr(dhcpv4.ClientHWAddr))
-	fmt.Printf("                ├── Server Name      : %s\n", dhcpv4.ServerName)
-	fmt.Printf("                ├── File             : %s\n", dhcpv4.File)
-	fmt.Printf("                ├── DHCP Options     : %s\n", dhcpv4.Options)
-}
-
-
-
-
-
 
 func main() {
 	//Help & Arguments
@@ -289,7 +181,7 @@ func main() {
 
 		// Unhandled Ethernet payload
 		if arp != nil {
-			printARP(arp.(*layers.ARP))
+			printer.PrintARP(arp.(*layers.ARP))
 		} else if eth != nil && ip4 == nil && ip6 == nil {
 			ethernetLayer := eth.(*layers.Ethernet)
 			fmt.Printf("        └── Next protocol: %s\n", ethernetLayer.EthernetType)
@@ -314,7 +206,7 @@ func main() {
 
 		// Unhandled IPv4 payload
 		if icmpv4 != nil {
-			printICMPv4(icmpv4.(*layers.ICMPv4))
+			printer.PrintICMPv4(icmpv4.(*layers.ICMPv4))
 		} else if ip4 != nil && tcp == nil && udp == nil {
 			ip4Layer := ip4.(*layers.IPv4)
 			fmt.Printf("        └── Next protocol %s\n", ip4Layer.Protocol)
@@ -336,7 +228,7 @@ func main() {
 
 		// Unhandled IPv6 payload
 		if icmpv6 != nil {
-			printICMPv6(icmpv6.(*layers.ICMPv6))
+			printer.PrintICMPv6(icmpv6.(*layers.ICMPv6))
 		} else if ip6 != nil && tcp == nil && udp == nil {
 			ip6Layer := ip6.(*layers.IPv6)
 			fmt.Printf("        └── Next Header: %s\n", ip6Layer.NextHeader)
@@ -368,10 +260,10 @@ func main() {
 		}
 
 		if dhcpv4 != nil {
-			printDHCPv4(dhcpv4.(*layers.DHCPv4))
+			printer.PrintDHCPv4(dhcpv4.(*layers.DHCPv4))
 		}
 		if dns != nil {
-			printDNS(dns.(*layers.DNS))
+			printer.PrintDNS(dns.(*layers.DNS))
 		}
 
 		
