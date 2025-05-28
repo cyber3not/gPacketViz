@@ -143,7 +143,7 @@ func main() {
 
 	flag.Usage = func() {
 		progName := filepath.Base(os.Args[0])
-		fmt.Fprintf(os.Stderr, "Usage: %s <interface> [options]\n", progName)
+		fmt.Fprintf(os.Stderr, "Usage: %s <Interface or Capture File> [options]\n", progName)
 		flag.PrintDefaults()
 	}
 
@@ -152,20 +152,37 @@ func main() {
 	// Check for missing args
 	args := flag.Args()
 	if len(args) < 1 {
-		fmt.Println("Missing interface!")
+		fmt.Println("Missing Interface or Capture File!")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Open device
-	iface := args[0]
-	fmt.Println("Sniffing on interface:", iface)
-	handle, err := pcap.OpenLive(iface, 1600, true, pcap.BlockForever)
+	
+
+	// Open Input
+	input := args[0]
+	fmt.Println("Input:", input)
+
+	var handle *pcap.Handle
+	var err error
+	isFile := false
+
+	if _, err := os.Stat(input); err == nil {
+		isFile = true
+	}
+
+	if isFile {
+		fmt.Println("Reading from file:", input)
+		handle, err = pcap.OpenOffline(input)
+	} else {
+		fmt.Println("Sniffing on interface:", input)
+		handle, err = pcap.OpenLive(input, 1600, true, pcap.BlockForever)
+	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error Opening Device: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error opening input: %v", err)
 	}
 	defer handle.Close()
+	
 
 	// Start packet processing
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
