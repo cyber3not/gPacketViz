@@ -156,6 +156,7 @@ func main() {
 
 		ip4 := packet.Layer(layers.LayerTypeIPv4)
           icmpv4 := packet.Layer(layers.LayerTypeICMPv4)
+		  igmp := packet.Layer(layers.LayerTypeIGMP)
 		  dhcpv4 := packet.Layer(layers.LayerTypeDHCPv4)
 
 		ip6 := packet.Layer(layers.LayerTypeIPv6)
@@ -207,6 +208,8 @@ func main() {
 		// Unhandled IPv4 payload
 		if icmpv4 != nil {
 			printer.PrintICMPv4(icmpv4.(*layers.ICMPv4))
+		} else if igmp != nil {
+				printer.PrintIGMP(packet)
 		} else if ip4 != nil && tcp == nil && udp == nil {
 			ip4Layer := ip4.(*layers.IPv4)
 			fmt.Printf("        └── Next protocol %s\n", ip4Layer.Protocol)
