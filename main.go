@@ -12,6 +12,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/pcapgo"
 )
 
 func colorFlag(flag bool) string {
@@ -136,10 +137,12 @@ func main() {
 	var portFilter int
 	var macFilter string
 	var bpf string
+	var savePath string
 	flag.StringVar(&ipFilter, "ip", "", "Filter by IPv4")
 	flag.IntVar(&portFilter, "port", 0, "Filter by Port")
 	flag.StringVar(&macFilter, "mac", "", "Filter by MAC")
 	flag.StringVar(&bpf, "bpf", "", "Berkley Package Filter")
+	flag.StringVar(&savePath, "out", "", "Save to pcap file")
 
 	flag.Usage = func() {
 		progName := filepath.Base(os.Args[0])
@@ -182,6 +185,25 @@ func main() {
 		log.Fatalf("Error opening input: %v", err)
 	}
 	defer handle.Close()
+
+
+	var outputFile *os.File
+	var writer *pcapgo.Writer
+
+	if savePath != "" {
+		outputFile, err = os.Create(savePath)
+		if err != nil {
+			log.Fatalf("Failed to create output file: %v", err)
+		}
+		writer = pcapgo.NewWriter(outputFile)
+		err = writer.WriteFileHeader(1600, layers.LinkTypeEthernet)
+		if err != nil {
+			log.Fatalf("Failed to write pcap header: %v", err)
+		}
+		fmt.Println("Saving packets to:", savePath)
+		defer outputFile.Close()
+	}
+
 	
 
 	// Start packet processing
@@ -227,9 +249,14 @@ func main() {
 		fmt.Println("No filter applied – capturing all packets")
 	}
 
-	//
+	//Packet-Loop
 	for packet := range packetSource.Packets() {
-		
+		if writer != nil {
+			err := writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
+			if err != nil {
+				log.Printf("Warning: failed to write packet: %v", err)
+			}
+		}
 
 		//Separate Layer
 		eth := packet.Layer(layers.LayerTypeEthernet)
@@ -244,7 +271,6 @@ func main() {
 
 		tcp := packet.Layer(layers.LayerTypeTCP)
 		udp := packet.Layer(layers.LayerTypeUDP)
-
 	    	dns := packet.Layer(layers.LayerTypeDNS)
 		  
 
